@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>مذاكرني | مساعد المذاكرة بالذكاء الاصطناعي</title>
+<meta name="description" content="ارفع ملزمتك PDF واحصل على ملخص وأسئلة اختبار وبطاقات مراجعة بالذكاء الاصطناعي. مجاني.">
+<meta name="theme-color" content="#0f766e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">📘</span><div><h1>مذاكرني</h1><p>ارفع ملزمتك، وخلّي الذكاء الاصطناعي يذاكر معاك</p></div></div>
+  <button id="installBtn" class="ghost" hidden>تثبيت التطبيق</button>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="new" class="active">➕ جديد</button>
+  <button data-tab="summary" disabled>📝 الملخص</button>
+  <button data-tab="quiz" disabled>❓ اختبار</button>
+  <button data-tab="cards" disabled>🃏 بطاقات</button>
+  <button data-tab="library">📚 محفوظاتي</button>
+</nav>
+
+<main>
+<section id="tab-new" class="panel active">
+  <label class="drop" id="drop">
+    <input type="file" id="file" accept=".pdf,.txt,.md,application/pdf,text/plain" hidden>
+    <div class="dropicon">📄</div>
+    <strong>اضغط لرفع ملف PDF أو نص</strong>
+    <span>أو اسحب الملف هنا. الملف بيتقرا على جهازك ومش بيترفع لأي سيرفر.</span>
+  </label>
+  <div class="or">أو الصق النص هنا</div>
+  <textarea id="text" rows="8" placeholder="الصق ملاحظات المحاضرة أو أي نص عايز تذاكره..."></textarea>
+  <div class="row">
+    <label>اللغة
+      <select id="lang">
+        <option value="auto">نفس لغة الملف</option>
+        <option value="ar">عربي</option>
+        <option value="en">English</option>
+      </select>
+    </label>
+    <label>عدد الأسئلة
+      <select id="qcount"><option>5</option><option selected>10</option><option>15</option></select>
+    </label>
+    <label>الوضع
+      <select id="mode">
+        <option value="ai">ذكاء اصطناعي (أدق)</option>
+        <option value="offline">بدون إنترنت (مبسّط)</option>
+      </select>
+    </label>
+  </div>
+  <div id="meta" class="hint"></div>
+  <button id="go" class="primary">ابدأ المذاكرة ✨</button>
+  <button id="sample" class="ghost">جرّب بنص تجريبي</button>
+  <div id="status" class="status" hidden></div>
+  <p class="hint small">الذكاء الاصطناعي بيشتغل عن طريق خدمة مجانية (Pollinations)، ومحتوى النص بيتبعت لها وقت التوليد فقط. لو الملف حساس استخدم وضع "بدون إنترنت".</p>
+</section>
+
+<section id="tab-summary" class="panel">
+  <h2 id="setTitle"></h2>
+  <div id="summaryBox"></div>
+  <h3>أهم النقاط</h3>
+  <ul id="points"></ul>
+  <button id="copySummary" class="ghost">نسخ الملخص</button>
+</section>
+
+<section id="tab-quiz" class="panel">
+  <div id="quizBox"></div>
+</section>
+
+<section id="tab-cards" class="panel">
+  <div id="cardBox"></div>
+</section>
+
+<section id="tab-library" class="panel">
+  <h2>محفوظاتي</h2>
+  <div id="libBox"></div>
+</section>
+</main>
+<footer>صُنع بواسطة Ali Abo Zaid · مجاني ومفتوح المصدر</footer>
+<script type="module" src="app.js"></script>
+</body>
+</html>
