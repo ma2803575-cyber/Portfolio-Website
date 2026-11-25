@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>حوّل | أدوات PDF والصور</title>
+<meta name="description" content="حوّل صور لـPDF، ادمج وقسّم واضغط ملفات PDF. مجاني، وكل حاجة بتتم على جهازك.">
+<meta name="theme-color" content="#4338ca">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">🔄</span><div><h1>حوّل</h1><p>أدوات PDF والصور. مجانية وعلى جهازك</p></div></div>
+  <button id="installBtn" class="ghost" hidden>تثبيت التطبيق</button>
+</header>
+<nav class="tabs" id="tabs">
+  <button data-tab="img" class="active">🖼️ صور → PDF</button>
+  <button data-tab="merge">➕ دمج</button>
+  <button data-tab="split">✂️ تقسيم</button>
+  <button data-tab="compress">🗜️ ضغط</button>
+</nav>
+<main>
+<section id="tab-img" class="panel active">
+  <h2>حوّل صور لملف PDF</h2>
+  <label class="drop"><input type="file" id="f-img" accept="image/*" multiple hidden>
+    <div class="dropicon">🖼️</div><strong>اختار الصور</strong><span>JPG / PNG / WebP. رتّبهم بالأسهم بعد الرفع.</span></label>
+  <div id="l-img" class="list"></div>
+  <div class="row">
+    <label>حجم الصفحة<select id="o-size"><option value="a4">A4</option><option value="fit">على حجم الصورة</option></select></label>
+    <label>الهوامش<select id="o-margin"><option value="0">بدون</option><option value="20" selected>متوسطة</option><option value="40">كبيرة</option></select></label>
+  </div>
+  <button class="primary" id="go-img">اعمل PDF ✨</button>
+  <div class="out" id="r-img"></div>
+</section>
+<section id="tab-merge" class="panel">
+  <h2>ادمج أكتر من PDF في ملف واحد</h2>
+  <label class="drop"><input type="file" id="f-merge" accept="application/pdf,.pdf" multiple hidden>
+    <div class="dropicon">📄</div><strong>اختار ملفات PDF</strong><span>الترتيب اللي تحت هو ترتيب الدمج.</span></label>
+  <div id="l-merge" class="list"></div>
+  <button class="primary" id="go-merge">ادمج الملفات ✨</button>
+  <div class="out" id="r-merge"></div>
+</section>
+<section id="tab-split" class="panel">
+  <h2>قسّم PDF أو استخرج صفحات منه</h2>
+  <label class="drop"><input type="file" id="f-split" accept="application/pdf,.pdf" hidden>
+    <div class="dropicon">📄</div><strong>اختار ملف PDF</strong><span id="i-split">ملف واحد</span></label>
+  <div class="row">
+    <label>الطريقة<select id="o-splitmode"><option value="range">استخرج صفحات في ملف واحد</option><option value="each">كل صفحة في ملف منفصل</option></select></label>
+    <label id="rangeWrap">الصفحات (مثال: 1-3,5,8-10)<input id="o-range" type="text" inputmode="text" dir="ltr" placeholder="1-3,5"></label>
+  </div>
+  <button class="primary" id="go-split">نفّذ ✨</button>
+  <div class="out" id="r-split"></div>
+</section>
+<section id="tab-compress" class="panel">
+  <h2>صغّر حجم PDF</h2>
+  <label class="drop"><input type="file" id="f-compress" accept="application/pdf,.pdf" hidden>
+    <div class="dropicon">📄</div><strong>اختار ملف PDF</strong><span id="i-compress">ملف واحد</span></label>
+  <div class="row">
+    <label>مستوى الضغط<select id="o-level"><option value="high">قوي (أصغر حجم)</option><option value="mid" selected>متوسط</option><option value="low">خفيف (أعلى جودة)</option></select></label>
+  </div>
+  <p class="hint small">الضغط بيحوّل كل صفحة لصورة مضغوطة، فالنص مش هيبقى قابل للتحديد أو البحث بعده. لو الملف حجمه ما قلش، هنقولك ونسيبه زي ما هو.</p>
+  <button class="primary" id="go-compress">اضغط الملف ✨</button>
+  <div class="out" id="r-compress"></div>
+</section>
+<div id="status" class="status" hidden></div>
+<p class="hint small center">🔒 كل الملفات بتتعالج على جهازك داخل المتصفح ومش بتترفع لأي سيرفر.</p>
+</main>
+<footer>صُنع بواسطة Ali Abo Zaid · مجاني ومفتوح المصدر</footer>
+<script src="vendor/pdf-lib.min.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
