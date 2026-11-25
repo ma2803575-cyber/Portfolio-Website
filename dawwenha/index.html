@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#6d28d9">
+<title>دوّنها - مفكرة صوتية بالعربي</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>دوّنها <span aria-hidden="true">🎙️</span></h1>
+  <p>سجّل صوتك أو ارفع ملف، وحوّله لملاحظات عربية منظمة. كل حاجة متسجلة على جهازك.</p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="record" role="tab">🎙️ تسجيل</button>
+  <button class="tab" data-tab="upload" role="tab">📂 رفع ملف</button>
+  <button class="tab" data-tab="write" role="tab">✍️ كتابة</button>
+</nav>
+
+<div id="msg" class="msg hidden" role="status"></div>
+
+<main>
+  <!-- RECORD -->
+  <section id="tab-record" class="panel">
+    <button id="recBtn" class="rec"><span class="dot"></span><span id="recLabel">ابدأ التسجيل</span></button>
+    <div id="recTimer" class="timer hidden">00:00</div>
+    <div id="liveBox" class="live hidden"></div>
+    <p class="hint" id="recHint">هنطلب إذن المايك أول مرة. النص بيطلع لحظياً لو المتصفح بيدعم التعرف على الكلام (كروم على أندرويد ممتاز في كده).</p>
+  </section>
+
+  <!-- UPLOAD -->
+  <section id="tab-upload" class="panel hidden">
+    <label class="filepick">
+      <input type="file" id="fileIn" accept="audio/*">
+      <span>📂 اختار ملف صوتي (mp3, m4a, wav, ogg...)</span>
+    </label>
+    <div id="fileInfo" class="hint"></div>
+    <label class="model">نموذج التحويل:
+      <select id="modelSel">
+        <option value="Xenova/whisper-tiny">سريع (حوالي 40 ميجا أول مرة)</option>
+        <option value="Xenova/whisper-base">أدق (حوالي 75 ميجا أول مرة)</option>
+        <option value="Xenova/whisper-small">الأدق (حوالي 250 ميجا أول مرة)</option>
+      </select>
+    </label>
+    <button id="sttBtn" class="btn primary" disabled>📝 حوّل لنص على جهازك</button>
+    <div class="bar hidden" id="sttBar"><div id="sttFill"></div></div>
+    <p class="hint">التحويل بيحصل على جهازك بالكامل (Whisper)، من غير ما الصوت يطلع من موبايلك. النموذج بيتنزل أول مرة بس وبعدها بيشتغل من الكاش.</p>
+  </section>
+
+  <!-- WRITE -->
+  <section id="tab-write" class="panel hidden">
+    <textarea id="writeTxt" rows="7" placeholder="اكتب أو الصق نص محاضرة أو فكرة هنا..."></textarea>
+    <button id="writeBtn" class="btn primary">✨ نظّمها ملاحظات</button>
+  </section>
+
+  <!-- DRAFT -->
+  <section id="draft" class="panel hidden">
+    <h2 id="draftTitle">المسودة</h2>
+    <audio id="draftAudio" controls class="hidden"></audio>
+    <textarea id="draftTxt" rows="8" placeholder="النص هيظهر هنا..."></textarea>
+    <div class="row">
+      <button id="organizeBtn" class="btn primary">✨ نظّم بالذكاء الاصطناعي</button>
+      <button id="sttDraftBtn" class="btn hidden">📝 حوّل الصوت لنص</button>
+    </div>
+    <div class="row">
+      <button id="saveBtn" class="btn ok">💾 حفظ</button>
+      <button id="discardBtn" class="btn ghost">🗑️ تجاهل</button>
+    </div>
+    <div id="orgOut" class="hidden">
+      <h3 id="orgTitle"></h3>
+      <div id="orgTags" class="tags"></div>
+      <div id="orgText" class="orgtext"></div>
+    </div>
+  </section>
+
+  <!-- LIBRARY -->
+  <section class="panel">
+    <h2>📚 ملاحظاتي <span id="count" class="count"></span></h2>
+    <input type="search" id="search" placeholder="🔍 دور في الملاحظات...">
+    <div id="notes"></div>
+  </section>
+</main>
+
+<!-- NOTE VIEW -->
+<div id="viewer" class="overlay hidden">
+  <div class="sheet">
+    <button id="closeV" class="x">✕</button>
+    <h2 id="vTitle"></h2>
+    <div id="vMeta" class="meta"></div>
+    <audio id="vAudio" controls class="hidden"></audio>
+    <div id="vText" class="orgtext"></div>
+    <details id="vRawWrap" class="hidden"><summary>النص الأصلي</summary><div id="vRaw" class="rawtext"></div></details>
+    <div class="row">
+      <button id="vCopy" class="btn">📋 نسخ</button>
+      <button id="vShare" class="btn">📤 مشاركة</button>
+      <button id="vDl" class="btn">⬇️ تنزيل</button>
+      <button id="vDel" class="btn danger">🗑️ مسح</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>الخصوصية: التسجيلات والملاحظات محفوظة على جهازك بس. تحويل الصوت لنص من الملفات بيحصل على جهازك. التعرف اللحظي أثناء التسجيل بيستخدم خدمة المتصفح (كروم/جوجل). "نظّم بالذكاء الاصطناعي" بيبعت <b>النص المكتوب بس</b> لخدمة مجانية (Pollinations)، فلو النص حساس خليك في الوضع المحلي من غير تنظيم.</p>
+</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
