@@ -153,37 +153,74 @@ $('#go-split').onclick=()=>run($('#go-split'),$('#r-split'),async()=>{
   }
 });
 
-// compress
-const LV={high:{scale:1.0,q:0.5},mid:{scale:1.4,q:0.65},low:{scale:1.8,q:0.8}};
+// compress: keeps text, fonts and vectors. Only embedded images are recompressed.
+const LV={high:{max:1200,q:0.5},mid:{max:1800,q:0.65},low:{max:2600,q:0.8}};
+const {PDFName,PDFRawStream,PDFNumber,PDFRef,decodePDFRawStream}=PDFLib;
+const nm=(o,k)=>{const v=o.dict.lookup(PDFName.of(k));return v&&v.asString?v.asString().replace('/',''):null};
+const num=(o,k)=>{const v=o.dict.lookup(PDFName.of(k));return v&&v.asNumber?v.asNumber():null};
+function filters(o){
+  const f=o.dict.lookup(PDFName.of('Filter'));if(!f)return[];
+  const arr=f.asArray?f.asArray():[f];return arr.map(x=>String(x.asString?x.asString():x).replace('/',''));
+}
+async function toJpeg(canvas,q){return new Uint8Array(await (await new Promise(r=>canvas.toBlob(r,'image/jpeg',q))).arrayBuffer())}
+const OKF=['FlateDecode','ASCII85Decode','ASCIIHexDecode','LZWDecode','RunLengthDecode'];
+function decodeWith(o,pre,keepParms){
+  const d=o.dict.clone(o.dict.context);
+  if(pre.length)d.set(PDFName.of('Filter'),o.dict.context.obj(pre.map(n=>PDFName.of(n))));else d.delete(PDFName.of('Filter'));
+  if(!keepParms)d.delete(PDFName.of('DecodeParms'));
+  return decodePDFRawStream(PDFRawStream.of(d,o.contents)).decode();
+}
+async function recompressImage(o,lv){
+  const w=num(o,'Width'),h=num(o,'Height');if(!w||!h||w*h<40000)return null;
+  const mask=o.dict.lookup(PDFName.of('ImageMask'));if(mask&&mask.toString()==='true')return null;
+  const fl=filters(o);let bmp;
+  if(fl.length&&fl[fl.length-1]==='DCTDecode'&&fl.slice(0,-1).every(f=>OKF.includes(f))){
+    const jb=decodeWith(o,fl.slice(0,-1),false);
+    try{bmp=await createImageBitmap(new Blob([jb],{type:'image/jpeg'}))}catch(e){return null}
+  }else if(fl.every(f=>OKF.includes(f))){
+    const cs=o.dict.lookup(PDFName.of('ColorSpace'));const csn=cs&&cs instanceof PDFName?cs.asString():'';
+    const bpc=num(o,'BitsPerComponent');if(bpc!==8||(csn!=='/DeviceRGB'&&csn!=='/DeviceGray'))return null;
+    const raw=decodeWith(o,fl,true);const ch=csn==='/DeviceRGB'?3:1;
+    if(raw.length<w*h*ch)return null;
+    const id=new ImageData(w,h);const d=id.data;
+    for(let i=0,j=0,k=0;i<w*h;i++){if(ch===3){d[j++]=raw[k++];d[j++]=raw[k++];d[j++]=raw[k++]}else{const v=raw[k++];d[j++]=v;d[j++]=v;d[j++]=v}d[j++]=255}
+    bmp=await createImageBitmap(id);
+  }else return null;
+  const sc=Math.min(1,lv.max/Math.max(bmp.width,bmp.height));
+  const cw=Math.max(1,Math.round(bmp.width*sc)),chh=Math.max(1,Math.round(bmp.height*sc));
+  const c=document.createElement('canvas');c.width=cw;c.height=chh;
+  const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,cw,chh);x.drawImage(bmp,0,0,cw,chh);bmp.close&&bmp.close();
+  const jpg=await toJpeg(c,lv.q);c.width=c.height=0;
+  if(jpg.length>=o.contents.length*0.9)return null;
+  return {jpg,w:cw,h:chh};
+}
 $('#go-compress').onclick=()=>run($('#go-compress'),$('#r-compress'),async()=>{
   const s=single.compress;if(!s)return status('اختار ملف PDF الأول.',true);
-  if(s.pages>150)return status('الملف كبير جدًا (أكتر من 150 صفحة) للضغط على الموبايل. قسّمه الأول.',true);
   const lv=LV[$('#o-level').value];
-  const pdfjs=await import('./vendor/pdf.min.mjs');
-  pdfjs.GlobalWorkerOptions.workerSrc=new URL('./vendor/pdf.worker.min.mjs',import.meta.url).href;
   const data=await s.file.arrayBuffer();
-  const pdf=await pdfjs.getDocument({data:data.slice(0)}).promise;
-  const out=await PDFDocument.create();
-  for(let i=1;i<=pdf.numPages;i++){
-    status(`جاري ضغط الصفحة ${i} من ${pdf.numPages}...`);await sleep();
-    const pg=await pdf.getPage(i);const base=pg.getViewport({scale:1});
-    const vp=pg.getViewport({scale:lv.scale});
-    const c=document.createElement('canvas');c.width=Math.ceil(vp.width);c.height=Math.ceil(vp.height);
-    const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);
-    await pg.render({canvasContext:x,viewport:vp}).promise;
-    const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',lv.q));
-    const im=await out.embedJpg(new Uint8Array(await blob.arrayBuffer()));
-    const p=out.addPage([base.width,base.height]);p.drawImage(im,{x:0,y:0,width:base.width,height:base.height});
-    c.width=c.height=0;pg.cleanup();
+  let doc;try{doc=await PDFDocument.load(data,{updateMetadata:false})}catch(e){return status('مش قادر أفتح الملف (ممكن يكون محمي بباسورد أو تالف).',true)}
+  const ctx=doc.context;const ents=ctx.enumerateIndirectObjects();let done=0,changed=0;
+  const imgs=ents.filter(([r,o])=>o instanceof PDFRawStream&&nm(o,'Subtype')==='Image');
+  for(const [ref,o] of imgs){
+    status(`جاري ضغط الصور ${++done} من ${imgs.length}...`);await sleep();
+    let r=null;try{r=await recompressImage(o,lv)}catch(e){r=null}
+    if(!r)continue;
+    const d=o.dict;d.set(PDFName.of('Width'),PDFNumber.of(r.w));d.set(PDFName.of('Height'),PDFNumber.of(r.h));
+    d.set(PDFName.of('ColorSpace'),PDFName.of('DeviceRGB'));d.set(PDFName.of('BitsPerComponent'),PDFNumber.of(8));
+    d.set(PDFName.of('Filter'),PDFName.of('DCTDecode'));
+    for(const k of ['DecodeParms','Decode','Intent','Mask'])d.delete(PDFName.of(k));
+    d.set(PDFName.of('Length'),PDFNumber.of(r.jpg.length));
+    ctx.assign(ref,PDFRawStream.of(d,r.jpg));changed++;
   }
-  const bytes=await out.save();const name=baseName(s.file)+'-small.pdf';
-  if(bytes.length>=s.file.size*0.95){
+  status('جاري حفظ الملف...');await sleep();
+  const bytes=await doc.save({useObjectStreams:true});const name=baseName(s.file)+'-small.pdf';
+  if(bytes.length>=s.file.size*0.97){
     const d=document.createElement('div');d.className='res warn';
     d.textContent=`الملف أصلاً مضغوط كويس (الحجم ${fmt(s.file.size)} والناتج ${fmt(bytes.length)}). الأفضل تستخدم الملف الأصلي. جرّب مستوى "قوي" لو لسه عايز أصغر.`;
     $('#r-compress').append(d);
   }else{
     const pct=Math.round((1-bytes.length/s.file.size)*100);
-    result($('#r-compress'),pdfBlob(bytes),name,`كان ${fmt(s.file.size)} (وفّرت ${pct}%)`);
+    result($('#r-compress'),pdfBlob(bytes),name,`كان ${fmt(s.file.size)} (وفّرت ${pct}%). النص لسه قابل للتحديد والبحث.`);
   }
 });
 
