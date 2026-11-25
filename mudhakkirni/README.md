@@ -5,7 +5,7 @@ Upload lecture notes (PDF / text) and get a summary, key points, a multiple-choi
 **Live:** https://ma2803575-cyber.github.io/Portfolio-Website/mudhakkirni/
 
 ## Features
-- Reads PDF in the browser (pdf.js), nothing is uploaded to a server
+- Reads PDF in the browser (pdf.js); there is no server of my own. In AI mode the text is sent to the free Pollinations API, so use offline mode for sensitive files
 - AI summary, key points, quiz with scoring and explanations, flip flashcards (mark known / not yet)
 - Offline mode: simple extractive summary + fill-in-the-blank quiz and cards, works with no internet
 - Study sets saved locally on your device
