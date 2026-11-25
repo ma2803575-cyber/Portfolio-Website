@@ -15,68 +15,50 @@
   <p>سجّل صوتك أو ارفع ملف، وحوّله لملاحظات عربية منظمة. كل حاجة متسجلة على جهازك.</p>
 </header>
 
-<nav class="tabs" role="tablist">
-  <button class="tab active" data-tab="record" role="tab">🎙️ تسجيل</button>
-  <button class="tab" data-tab="upload" role="tab">📂 رفع ملف</button>
-  <button class="tab" data-tab="write" role="tab">✍️ كتابة</button>
-</nav>
-
 <div id="msg" class="msg hidden" role="status"></div>
 
 <main>
-  <!-- RECORD -->
-  <section id="tab-record" class="panel">
-    <button id="recBtn" class="rec"><span class="dot"></span><span id="recLabel">ابدأ التسجيل</span></button>
+  <section id="home" class="panel">
+    <button id="recBtn" class="rec"><span class="dot"></span><span id="recLabel">اضغط وسجّل</span></button>
     <div id="recTimer" class="timer hidden">00:00</div>
     <div id="liveBox" class="live hidden"></div>
-    <p class="hint" id="recHint">هنطلب إذن المايك أول مرة. النص بيطلع لحظياً لو المتصفح بيدعم التعرف على الكلام (كروم على أندرويد ممتاز في كده).</p>
-  </section>
-
-  <!-- UPLOAD -->
-  <section id="tab-upload" class="panel hidden">
-    <label class="filepick">
-      <input type="file" id="fileIn" accept="audio/*">
-      <span>📂 اختار ملف صوتي (mp3, m4a, wav, ogg...)</span>
+    <p class="hint" id="recHint">اضغط مرة وابدأ كلام، واضغط تاني لما تخلص. هيتكتب وينظّم ويتحفظ لوحده.</p>
+    <label class="btn big">
+      <input type="file" id="fileIn" accept="audio/*,video/mp4,.m4a,.mp3,.wav,.ogg,.opus,.aac" hidden>
+      📂 أو ارفع ملف صوتي
     </label>
-    <div id="fileInfo" class="hint"></div>
-    <label class="model">نموذج التحويل:
-      <select id="modelSel">
-        <option value="Xenova/whisper-tiny">سريع (حوالي 40 ميجا أول مرة)</option>
-        <option value="Xenova/whisper-base">أدق (حوالي 75 ميجا أول مرة)</option>
-      </select>
-    </label>
-    <button id="sttBtn" class="btn primary" disabled>📝 حوّل لنص على جهازك</button>
-    <div class="bar hidden" id="sttBar"><div id="sttFill"></div></div>
-    <p class="hint">التحويل بيحصل على جهازك بالكامل (Whisper)، من غير ما الصوت يطلع من موبايلك. النموذج بيتنزل أول مرة بس وبعدها بيشتغل من الكاش.</p>
+    <details class="more"><summary>✍️ أو اكتب / الصق نص</summary>
+      <textarea id="writeTxt" rows="5" placeholder="الصق نص محاضرة أو فكرة هنا..."></textarea>
+      <button id="writeBtn" class="btn primary">✨ نظّم واحفظ</button>
+    </details>
+    <details class="more"><summary>⚙️ إعدادات</summary>
+      <label class="model">دقة تحويل الملفات والتسجيل (على جهازك):
+        <select id="modelSel">
+          <option value="Xenova/whisper-tiny">سريع (~40 ميجا) - دقة أقل</option>
+          <option value="Xenova/whisper-base" selected>متوازن (~75 ميجا)</option>
+          <option value="Xenova/whisper-small">الأدق (~250 ميجا، أبطأ، واي فاي وموبايل قوي)</option>
+        </select>
+      </label>
+      <label class="model">لهجة النص اللحظي أثناء التسجيل:
+        <select id="langSel">
+          <option value="ar-EG" selected>مصري</option>
+          <option value="ar-SA">سعودي / فصحى</option>
+          <option value="ar-AE">خليجي</option>
+          <option value="ar-JO">شامي</option>
+          <option value="ar-MA">مغربي</option>
+        </select>
+      </label>
+    </details>
   </section>
 
-  <!-- WRITE -->
-  <section id="tab-write" class="panel hidden">
-    <textarea id="writeTxt" rows="7" placeholder="اكتب أو الصق نص محاضرة أو فكرة هنا..."></textarea>
-    <button id="writeBtn" class="btn primary">✨ نظّمها ملاحظات</button>
+  <section id="flow" class="panel hidden">
+    <ol class="steps"><li id="st1">١. تحويل الصوت لنص</li><li id="st2">٢. تنظيم الملاحظات</li><li id="st3">٣. حفظ</li></ol>
+    <div class="bar" id="sttBar"><div id="sttFill"></div></div>
+    <div id="flowTxt" class="flowtxt"></div>
+    <div class="row"><button id="skipBtn" class="btn ghost hidden">⏭ اتخطّى التنظيم واحفظ كده</button></div>
   </section>
 
-  <!-- DRAFT -->
-  <section id="draft" class="panel hidden">
-    <h2 id="draftTitle">المسودة</h2>
-    <audio id="draftAudio" controls class="hidden"></audio>
-    <textarea id="draftTxt" rows="8" placeholder="النص هيظهر هنا..."></textarea>
-    <div class="row">
-      <button id="organizeBtn" class="btn primary">✨ نظّم بالذكاء الاصطناعي</button>
-      <button id="sttDraftBtn" class="btn hidden">📝 حوّل الصوت لنص</button>
-    </div>
-    <div class="row">
-      <button id="saveBtn" class="btn ok">💾 حفظ</button>
-      <button id="discardBtn" class="btn ghost">🗑️ تجاهل</button>
-    </div>
-    <div id="orgOut" class="hidden">
-      <h3 id="orgTitle"></h3>
-      <div id="orgTags" class="tags"></div>
-      <div id="orgText" class="orgtext"></div>
-    </div>
-  </section>
-
-  <!-- LIBRARY -->
+<!-- LIBRARY -->
   <section class="panel">
     <h2>📚 ملاحظاتي <span id="count" class="count"></span></h2>
     <input type="search" id="search" placeholder="🔍 دور في الملاحظات...">
@@ -92,8 +74,12 @@
     <div id="vMeta" class="meta"></div>
     <audio id="vAudio" controls class="hidden"></audio>
     <div id="vText" class="orgtext"></div>
+    <textarea id="vEdit" rows="12" class="hidden"></textarea>
+    <div id="vNote" class="hint warn hidden"></div>
     <details id="vRawWrap" class="hidden"><summary>النص الأصلي</summary><div id="vRaw" class="rawtext"></div></details>
     <div class="row">
+      <button id="vEditBtn" class="btn primary">✏️ تعديل</button>
+      <button id="vReorg" class="btn">✨ نظّم بالذكاء الاصطناعي</button>
       <button id="vCopy" class="btn">📋 نسخ</button>
       <button id="vShare" class="btn">📤 مشاركة</button>
       <button id="vDl" class="btn">⬇️ تنزيل</button>
