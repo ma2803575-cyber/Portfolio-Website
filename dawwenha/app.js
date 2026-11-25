@@ -31,15 +31,18 @@ function flowBar(p){$('sttBar').classList.toggle('hidden',p==null);if(p!=null)$(
 function lockHome(b){$('recBtn').disabled=b;$('fileIn').disabled=b;$('writeBtn').disabled=b}
 
 // ---------- The one pipeline: text (live or Whisper) -> organize -> save ----------
-async function pipeline({blob=null,raw='',duration=0}){
+async function pipeline({blob=null,raw='',duration=0,fallbackRaw=''}){
   if(flow.busy)return;flow.busy=true;lockHome(true);flowShow(true);$('flow').scrollIntoView({behavior:'smooth'});
   const id=uid();
+  let audioSaved=false;
+  // Save the audio FIRST so a failed/slow transcription can never lose it
+  if(blob){try{await idb.put(id,blob);audioSaved=true}catch{}}
   try{
     if(!raw.trim()&&blob){
       step(1,'⏳ بنجهّز الصوت…');flowBar(0);
       raw=await transcribeFile(blob,{model:$('modelSel').value,
         onProgress:p=>{flowBar(p)},
-        onStage:t=>{$('flowTxt').textContent=t;if(t.startsWith('👂'))flowBar(null)}});
+        onStage:t=>{$('flowTxt').textContent=t;if(t.startsWith('👂'))flowBar(null)}}).catch(e=>{if(fallbackRaw.trim())return fallbackRaw;throw e});
     }else step(1,'✅ النص جاهز');
     raw=(raw||'').trim();
     if(raw.length<3)throw new Error('مفيش كلام اتسمع. تأكد إن الصوت واضح وقرّب من المايك.');
@@ -60,8 +63,7 @@ async function pipeline({blob=null,raw='',duration=0}){
     step(3,'💾 بنحفظ…');
     const n={id,date:new Date().toISOString(),duration:duration||0,
       title:(org&&org.title)||raw.split(' ').slice(0,8).join(' ')||'تسجيل صوتي',
-      text:org?renderNote(org,raw):raw,raw,tags:(org&&org.tags)||[],hasAudio:!!blob,aiDone:!note&&!!org};
-    if(blob)try{await idb.put(id,blob)}catch{n.hasAudio=false}
+      text:org?renderNote(org,raw):raw,raw,tags:(org&&org.tags)||[],hasAudio:audioSaved,aiDone:!note&&!!org};
     notes.unshift(n);persist();renderList();
     flowShow(false);
     openNote(id,note||'اتحفظت ✅ راجع النص وعدّل أي كلمة غلط من زرار "تعديل".');
@@ -70,7 +72,7 @@ async function pipeline({blob=null,raw='',duration=0}){
     flowShow(false);
     const t=(e&&e.message)||String(e);
     if(blob&&!raw.trim()){
-      try{await idb.put(id,blob);notes.unshift({id,date:new Date().toISOString(),duration:duration||0,title:'تسجيل صوتي (من غير نص)',text:'',raw:'',tags:[],hasAudio:true,aiDone:false});persist();renderList();
+      try{if(!audioSaved)await idb.put(id,blob);notes.unshift({id,date:new Date().toISOString(),duration:duration||0,title:'تسجيل صوتي (من غير نص)',text:'',raw:'',tags:[],hasAudio:true,aiDone:false});persist();renderList();
         msg('مشكلة في التحويل لنص: '+t+' الصوت اتحفظ في "ملاحظاتي" ومش هيضيع.',1)}catch{msg('مشكلة: '+t,1)}
     }else msg('مشكلة: '+t,1);
   }finally{flow.busy=false;lockHome(false);$('fileIn').value=''}
@@ -82,7 +84,7 @@ let mr=null,chunks=[],recStart=0,tick=null,sr=null,liveFinal='',stream=null;
 let srErr='';
 function liveSR(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR)return null;
+  if(!SR||$('liveSel').value==='off')return null;
   const r=new SR();r.lang=$('langSel').value||'ar-EG';r.continuous=true;r.interimResults=true;r.maxAlternatives=1;
   let alive=true,fails=0;srErr='';
   r.onresult=e=>{fails=0;let interim='';for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript;if(e.results[i].isFinal)liveFinal+=(liveFinal?' ':'')+t.trim();else interim=t}
@@ -91,6 +93,7 @@ function liveSR(){
   r.onerror=e=>{
     const c=e.error;
     if(c==='no-speech'||c==='aborted')return;
+    if(c==='audio-capture'){srErr='النص اللحظي مش شغال مع المايك على جهازك. التسجيل شغال عادي وهنكتبه بعد ما توقف.';alive=false;$('liveBox').textContent='ℹ️ '+srErr;return}
     fails++;
     if(c==='not-allowed'||c==='service-not-allowed'){srErr='النص اللحظي مش متاح. مفيش مشكلة، هنكتب الصوت بعد ما توقف.';alive=false}
     else if(c==='network'){srErr='النص اللحظي محتاج إنترنت. مفيش مشكلة، هنكتب الصوت بعد ما توقف.';alive=false}
@@ -112,6 +115,7 @@ $('recBtn').onclick=async()=>{
   const mime=types.find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t))||'';
   chunks=[];liveFinal='';
   mr=new MediaRecorder(stream,mime?{mimeType:mime}:undefined);
+  mr.onerror=()=>msg('حصلت مشكلة في التسجيل. اضغط إيقاف عشان نحفظ اللي اتسجل.',1);
   mr.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
   mr.onstop=()=>{
     clearInterval(tick);stream.getTracks().forEach(t=>t.stop());
@@ -121,10 +125,14 @@ $('recBtn').onclick=async()=>{
     const blob=new Blob(chunks,{type:mr.mimeType||'audio/webm'});
     const dur=(Date.now()-recStart)/1000;
     if(dur<1.5){msg('التسجيل قصير أوي. جرّب تاني.',1);return}
-    pipeline({blob,raw:liveFinal,duration:dur});
+    if(!blob.size){msg('التسجيل طلع فاضي. جرّب تاني، ولو المشكلة مستمرة اقفل "النص اللحظي" من الإعدادات.',1);return}
+    // Live text is used only if it looks complete; otherwise Whisper transcribes the saved audio (live text stays as backup)
+    const live=liveFinal.trim(),sparse=live.length<dur*2.5;
+    pipeline({blob,raw:sparse?'':live,fallbackRaw:live,duration:dur});
   };
   mr.start(1000);recStart=Date.now();
-  sr=liveSR();
+  try{sr=liveSR()}catch{sr=null}
+  setTimeout(()=>{if(mr&&mr.state==='recording'&&!chunks.length){msg('المايك مش بيدّي صوت. لو مفيش صوت، اقفل "النص اللحظي" من الإعدادات وجرّب تاني.',1)}},4000);
   $('recBtn').classList.add('on');$('recLabel').textContent='⏹ خلّصت (اضغط للإيقاف)';
   $('recTimer').classList.remove('hidden');$('liveBox').classList.remove('hidden');
   $('liveBox').textContent=sr?'بيسمعك... النص هيظهر هنا وانت بتتكلم':'🎙️ بيسجّل... هنكتب الصوت أول ما توقف';
@@ -142,8 +150,9 @@ $('writeBtn').onclick=()=>{
   if(t.length<10){msg('اكتب نص أطول شوية',1);return}
   pipeline({blob:null,raw:t});
 };
-try{const m=localStorage.getItem('dawwenha.model');if(m)$('modelSel').value=m;const l=localStorage.getItem('dawwenha.lang');if(l)$('langSel').value=l}catch{}
+try{const m=localStorage.getItem('dawwenha.model');if(m)$('modelSel').value=m;const l=localStorage.getItem('dawwenha.lang');if(l)$('langSel').value=l;const lv=localStorage.getItem('dawwenha.live');if(lv)$('liveSel').value=lv}catch{}
 $('modelSel').onchange=()=>localStorage.setItem('dawwenha.model',$('modelSel').value);
+$('liveSel').onchange=()=>localStorage.setItem('dawwenha.live',$('liveSel').value);
 $('langSel').onchange=()=>localStorage.setItem('dawwenha.lang',$('langSel').value);
 
 // ---------- Library ----------

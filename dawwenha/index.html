@@ -36,7 +36,13 @@
         <select id="modelSel">
           <option value="Xenova/whisper-tiny">سريع (~40 ميجا) - دقة أقل</option>
           <option value="Xenova/whisper-base" selected>متوازن (~75 ميجا)</option>
-          <option value="Xenova/whisper-small">الأدق (~250 ميجا، أبطأ، واي فاي وموبايل قوي)</option>
+          <option value="Xenova/whisper-small">الأدق (~250 ميجا، أبطأ جداً، موبايل قوي وواي فاي. لو تقل هيرجع للمتوازن لوحده)</option>
+        </select>
+      </label>
+      <label class="model">النص اللحظي أثناء التسجيل (بيظهر وانت بتتكلم، والصوت بيتحفظ دايماً):
+        <select id="liveSel">
+          <option value="on" selected>شغّال (لو الجهاز بيدعمه)</option>
+          <option value="off">مقفول (التسجيل بس، والكتابة بعد الإيقاف)</option>
         </select>
       </label>
       <label class="model">لهجة النص اللحظي أثناء التسجيل:

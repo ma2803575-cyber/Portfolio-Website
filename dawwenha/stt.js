@@ -39,26 +39,55 @@ export function cleanTranscript(t){
   return t.replace(/\s+([،.؟!,?])/g,'$1').trim();
 }
 export const speechSeconds=a=>a.length/16000;
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+function withTimeout(p,ms,msg){let t;return Promise.race([p,new Promise((_,j)=>{t=setTimeout(()=>j(new Error(msg)),ms)})]).finally(()=>clearTimeout(t))}
+let lib=null;
+async function getLib(){
+  if(lib)return lib;
+  const m=await withTimeout(import(CDN),45000,'مكتبة التحويل ماحمّلتش. اتأكد من النت وجرّب تاني.');
+  m.env.allowLocalModels=false;
+  // Single thread, no worker proxy: both hung on weak/1-core devices. Threads need cross-origin isolation, which github.io doesn't have anyway.
+  try{m.env.backends.onnx.wasm.numThreads=1}catch{}
+  lib=m;return m;
+}
+const LOAD_MS={'Xenova/whisper-tiny':90000,'Xenova/whisper-base':120000,'Xenova/whisper-small':240000};
+async function loadPipe(model,onStage,onProgress){
+  if(pipes[model])return pipes[model];
+  const {pipeline}=await getLib();
+  const t0=Date.now();let last=0;
+  const iv=setInterval(()=>onStage('⬇️ تحميل نموذج التحويل ('+modelSize(model)+', أول مرة بس)… '+Math.round((Date.now()-t0)/1000)+' ث'),1000);
+  try{
+    pipes[model]=await withTimeout(pipeline('automatic-speech-recognition',model,{quantized:true,
+      progress_callback:p=>{if(p.status==='progress'&&p.total){last=Date.now();onProgress(p.loaded/p.total)}}}),
+      LOAD_MS[model]||120000,'تحميل النموذج أخد وقت طويل أوي');
+  }finally{clearInterval(iv)}
+  return pipes[model];
+}
+const FALLBACK={'Xenova/whisper-small':'Xenova/whisper-base','Xenova/whisper-base':'Xenova/whisper-tiny'};
 export async function transcribeFile(blob,{model='Xenova/whisper-base',onProgress=()=>{},onStage=()=>{},onChunk=()=>{}}={}){
   onStage('⏳ تجهيز الصوت…');
   const audio=await toMono16k(blob);
   if(audio.length<1600)throw new Error('الملف قصير جداً');
   let rms=0;for(let i=0;i<audio.length;i+=7)rms+=audio[i]*audio[i];rms=Math.sqrt(rms/(audio.length/7));
   if(rms<0.003)throw new Error('الصوت في الملف شبه صامت');
-  const {pipeline,env}=await import(CDN);
-  env.allowLocalModels=false;
-  try{env.backends.onnx.wasm.numThreads=window.__threads||(navigator.hardwareConcurrency>4?2:1)}catch{}
-  try{if(!window.__noProxy)env.backends.onnx.wasm.proxy=true}catch{} // run inference in a worker so the page doesn't freeze
-  if(!pipes[model]){
-    onStage('⬇️ تحميل نموذج التحويل ('+modelSize(model)+', أول مرة بس)…');
-    pipes[model]=await pipeline('automatic-speech-recognition',model,{quantized:true,
-      progress_callback:p=>{if(p.status==='progress'&&p.total)onProgress(p.loaded/p.total)}});
+  const secs=Math.ceil(audio.length/16000);
+  let pipe=null,used=model;
+  for(;;){
+    try{pipe=await loadPipe(used,onStage,onProgress);break}
+    catch(e){
+      delete pipes[used];
+      const fb=FALLBACK[used];
+      if(!fb)throw new Error('نموذج التحويل ماشتغلش على الجهاز ده ('+(e.message||e)+'). الصوت محفوظ وتقدر تكتبه بإيدك.');
+      onStage('⚠️ النموذج الأدق تقيل على جهازك، بنجرّب نموذج أخف…');onProgress(0);await wait(800);used=fb;
+    }
   }
-  const total=Math.max(1,Math.ceil(audio.length/16000/25));
-  let done=0;
-  onStage('👂 بيسمع ويكتب… (الصوت حوالي '+Math.ceil(audio.length/16000)+' ثانية)');
-  const out=await pipes[model](audio,{language:'arabic',task:'transcribe',chunk_length_s:30,stride_length_s:5,
-    return_timestamps:false,...(window.__noNgram?{}:{no_repeat_ngram_size:4}),
-    chunk_callback:()=>{done++;onChunk(done,total)}});
-  return cleanTranscript(out?.text);
+  onProgress(null);
+  const t0=Date.now();
+  const iv=setInterval(()=>onStage('👂 بيسمع ويكتب… (الصوت حوالي '+secs+' ثانية) '+Math.round((Date.now()-t0)/1000)+' ث'),1000);
+  try{
+    const out=await withTimeout(pipe(audio,{language:'arabic',task:'transcribe',chunk_length_s:30,stride_length_s:5,
+      return_timestamps:false,no_repeat_ngram_size:4,chunk_callback:()=>onChunk()}),
+      Math.max(120000,secs*5000),'التحويل أخد وقت أطول من المتوقع');
+    return cleanTranscript(out?.text);
+  }finally{clearInterval(iv)}
 }

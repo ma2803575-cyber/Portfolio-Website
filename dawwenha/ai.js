@@ -87,7 +87,10 @@ export async function organizeAI(text,{onProgress=()=>{},onWait=()=>{},signal}={
 // Offline structuring fallback
 const STOP=new Set('من في على إلى الى عن هو هي هذا هذه ذلك التي الذي الذين أن ان إن كان كانت يكون تكون ما لا لم لن قد كل أي او أو ثم مع بين حتى عند كما لكن هناك وهو وهي ده دي عشان كده بردو بس ايه ليه فيه'.split(' '));
 export function organizeOffline(text){
-  const sents=text.replace(/\s+/g,' ').split(/(?<=[.!؟?۔])\s+/).map(s=>s.trim()).filter(s=>s.length>15);
+  let sents=text.replace(/\s+/g,' ').split(/(?<=[.!؟?۔،,])\s+/).map(s=>s.trim()).filter(s=>s.length>15);
+  // Speech-to-text often has no punctuation: split long runs into ~18-word pieces so points and paragraphs still make sense
+  sents=sents.flatMap(s=>{const w=s.split(' ');if(w.length<=28)return [s];const o=[];for(let i=0;i<w.length;i+=18)o.push(w.slice(i,i+18).join(' '));return o.filter(x=>x.length>15)});
+  if(!sents.length)sents=[text.trim()];
   const freq={};
   for(const s of sents)for(const w of new Set((s.match(/[\u0600-\u06FF]{3,}/g)||[]).map(x=>x.toLowerCase())))if(!STOP.has(w))freq[w]=(freq[w]||0)+1;
   const tags=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,5).map(x=>x[0]);
