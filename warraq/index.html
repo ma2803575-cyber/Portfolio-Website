@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#4338ca">
+<title>وراق | محرر PDF مجاني بالذكاء الاصطناعي والترجمة</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+<script src="vendor/pdf-lib.min.js"></script>
+</head>
+<body>
+<header id="top">
+  <div class="brand"><b>وراق</b><small>PDF</small></div>
+  <div class="top-actions">
+    <button id="btnOpen" class="primary">📂 فتح PDF</button>
+    <button id="btnSave" class="primary ghost" disabled>💾 حفظ</button>
+    <button id="btnUndo" class="icon" disabled title="تراجع">↶</button>
+    <button id="btnRedo" class="icon" disabled title="إعادة">↷</button>
+    <button id="btnInstall" class="icon hidden" title="تثبيت">⬇️</button>
+  </div>
+  <input id="fileIn" type="file" accept="application/pdf,.pdf" hidden>
+  <input id="fileMulti" type="file" accept="application/pdf,.pdf,image/*" multiple hidden>
+</header>
+
+<nav id="tabs">
+  <button data-tab="read" class="on">📖 قراءة</button>
+  <button data-tab="mark">🖍 تعليق</button>
+  <button data-tab="sign">✍️ توقيع</button>
+  <button data-tab="pages">📑 صفحات</button>
+  <button data-tab="tools">🧰 أدوات</button>
+  <button data-tab="ai">✨ ذكاء وترجمة</button>
+  <button data-tab="study">🎓 مذاكرة</button>
+  <button data-tab="privacy">🛡 خصوصية</button>
+</nav>
+
+<section id="panel"></section>
+
+<main id="viewer">
+  <div id="empty">
+    <div class="logo">📄</div>
+    <h1>وراق</h1>
+    <p>محرر وقارئ PDF مجاني. تعديل نصوص، توقيع، دمج، تعليقات، ترجمة، تلخيص بالذكاء الاصطناعي، OCR، حجب بيانات وأدوات مذاكرة. كله على جهازك.</p>
+    <button id="btnOpen2" class="primary big">📂 افتح ملف PDF</button>
+    <p class="hint">أو اسحب الملف هنا. أو <a href="#" id="newBlank">ابدأ بملف فاضي</a> أو <a href="#" id="imgToPdf">حوّل صور لـ PDF</a></p>
+  </div>
+  <div id="pages"></div>
+</main>
+
+<div id="statusbar" class="hidden">
+  <button id="prevP" class="icon">‹</button>
+  <span><input id="pageNo" type="number" min="1" value="1"> / <b id="pageTotal">0</b></span>
+  <button id="nextP" class="icon">›</button>
+  <button id="zoomOut" class="icon">−</button><span id="zoomLbl">100%</span><button id="zoomIn" class="icon">+</button>
+  <button id="fitW" class="icon" title="ملاء العرض">⇔</button>
+</div>
+
+<div id="ctx" class="hidden"></div>
+<div id="focusTop" class="hidden"></div><div id="focusBot" class="hidden"></div>
+<div id="focusBar" class="hidden"><span>⇕ اسحب</span></div>
+
+<div id="sheet" class="hidden">
+  <div class="sheet-head"><b id="sheetTitle"></b><span id="sheetActs"></span><button id="sheetClose" class="icon">✕</button></div>
+  <div id="sheetBody"></div>
+</div>
+
+<dialog id="dlg"><form method="dialog"><h3 id="dlgTitle"></h3><div id="dlgBody"></div><div class="dlg-btns"><button value="cancel" class="ghost">إلغاء</button><button id="dlgOk" value="ok" class="primary">تمام</button></div></form></dialog>
+<div id="toast" class="hidden"></div>
+<div id="busy" class="hidden"><div class="spin"></div><div id="busyTxt">لحظة...</div></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
